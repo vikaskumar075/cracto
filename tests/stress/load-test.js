@@ -5,8 +5,8 @@ import { Rate } from "k6/metrics";
 const errorRate = new Rate("errors");
 
 // Target URL — override with K6_TARGET_URL env var
-const BASE_URL = __ENV.K6_TARGET_URL || "http://localhost:3000";
-const GRAPHQL_URL = `${BASE_URL}/api/graphql`;
+const BASE_URL = __ENV.K6_TARGET_URL || "http://localhost:4000";
+const GRAPHQL_URL = `${BASE_URL}/graphql`;
 
 const HEADERS = {
   "Content-Type": "application/json",

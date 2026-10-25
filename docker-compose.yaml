@@ -18,17 +18,29 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://postgres:password@db:5432/releasecheck
+      PORT: 4000
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
     build: .
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: postgresql://postgres:password@db:5432/releasecheck
+      NEXT_PUBLIC_GRAPHQL_URL: http://localhost:4000/graphql
       NODE_ENV: production
     depends_on:
-      db:
-        condition: service_healthy
+      - backend
 
 volumes:
   postgres_data:
