@@ -21,9 +21,7 @@ export function ReleaseDetail({ releaseId, onBack }: ReleaseDetailProps) {
     fetchPolicy: "cache-and-network",
   });
 
-  const [updateRelease, { loading: saving }] = useMutation<{ updateRelease: Release }>(UPDATE_RELEASE, {
-    refetchQueries: [{ query: GET_RELEASES }],
-  });
+  const [updateRelease, { loading: saving }] = useMutation<{ updateRelease: Release }>(UPDATE_RELEASE);
 
   const [deleteRelease] = useMutation<{ deleteRelease: boolean }>(DELETE_RELEASE, {
     variables: { id: releaseId },

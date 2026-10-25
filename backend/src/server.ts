@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
+import compression from "compression";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@apollo/server/express4";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
@@ -26,7 +27,12 @@ async function startServer() {
   await server.start();
 
   app.use(cors());
+  app.use(compression()); // Gzip compression for all JSON / GraphQL responses
   app.use(express.json());
+
+  // Configure HTTP keep-alive timeouts for high-throughput connection pooling
+  httpServer.keepAliveTimeout = 65000;
+  httpServer.headersTimeout = 66000;
 
   // Health check endpoint
   app.get("/health", (_req, res) => {

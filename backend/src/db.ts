@@ -14,7 +14,9 @@ export function getPool(): Pool {
     pool = new Pool({
       connectionString,
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-      max: 10,
+      max: 20, // Increased pool size for concurrent request handling
+      idleTimeoutMillis: 30000, // Close idle connections after 30s
+      connectionTimeoutMillis: 3000, // Fast fail if DB connection cannot be acquired
     });
   }
   return pool;
@@ -32,6 +34,8 @@ export async function initDb(): Promise<void> {
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+    -- Index for optimized release sorting performance
+    CREATE INDEX IF NOT EXISTS idx_releases_created_at ON releases (created_at DESC);
   `);
-  console.log("Database initialized: 'releases' table ready.");
+  console.log("Database initialized: 'releases' table & indexes ready.");
 }

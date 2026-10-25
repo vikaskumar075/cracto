@@ -16,22 +16,55 @@ function rowToRelease(row: Record<string, unknown>): Release {
   };
 }
 
+// In-memory query cache with TTL & instant mutation invalidation
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+let releasesCache: CacheEntry<Release[]> | null = null;
+const CACHE_TTL_MS = 5000; // 5 seconds TTL for rapid concurrent reads
+
+export function invalidateCache(): void {
+  releasesCache = null;
+}
+
 export async function getReleases(): Promise<Release[]> {
+  const now = Date.now();
+  if (releasesCache && now - releasesCache.timestamp < CACHE_TTL_MS) {
+    return releasesCache.data;
+  }
+
   const db = getPool();
-  const { rows } = await db.query(
-    "SELECT * FROM releases ORDER BY created_at DESC"
-  );
-  return rows.map(rowToRelease);
+  // Prepared statement for query plan optimization inside PostgreSQL
+  const { rows } = await db.query({
+    name: "fetch-all-releases",
+    text: "SELECT * FROM releases ORDER BY created_at DESC",
+  });
+  const result = rows.map(rowToRelease);
+  releasesCache = { data: result, timestamp: now };
+  return result;
 }
 
 export async function getReleaseById(id: string): Promise<Release | null> {
+  // Check in-memory cache first if available
+  if (releasesCache) {
+    const cached = releasesCache.data.find((r) => r.id === id);
+    if (cached) return cached;
+  }
+
   const db = getPool();
-  const { rows } = await db.query("SELECT * FROM releases WHERE id = $1", [id]);
+  const { rows } = await db.query({
+    name: "fetch-release-by-id",
+    text: "SELECT * FROM releases WHERE id = $1",
+    values: [id],
+  });
   if (rows.length === 0) return null;
   return rowToRelease(rows[0]);
 }
 
 export async function createRelease(input: CreateReleaseInput): Promise<Release> {
+  invalidateCache();
   const db = getPool();
   const { rows } = await db.query(
     `INSERT INTO releases (name, date, additional_info, steps_completed)
@@ -43,6 +76,7 @@ export async function createRelease(input: CreateReleaseInput): Promise<Release>
 }
 
 export async function updateRelease(input: UpdateReleaseInput): Promise<Release | null> {
+  invalidateCache();
   const db = getPool();
 
   const validSteps = input.stepsCompleted
@@ -67,6 +101,7 @@ export async function updateRelease(input: UpdateReleaseInput): Promise<Release 
 }
 
 export async function deleteRelease(id: string): Promise<boolean> {
+  invalidateCache();
   const db = getPool();
   const { rowCount } = await db.query("DELETE FROM releases WHERE id = $1", [id]);
   return (rowCount ?? 0) > 0;
